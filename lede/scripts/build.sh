@@ -56,7 +56,7 @@ if [[ $mode == all || $mode == prepare ]]; then
   ./scripts/feeds uninstall -a
   cp -- "$project_dir/config/feeds.conf" feeds.conf.default
   ./scripts/feeds update packages luci 2>&1 | tee "$output_dir/logs/feeds-update.log"
-  ./scripts/feeds install -p luci luci luci-ssl 2>&1 | tee "$output_dir/logs/feeds-install.log"
+  ./scripts/feeds install -p luci luci luci-ssl-openssl luci-compat 2>&1 | tee "$output_dir/logs/feeds-install.log"
   ./scripts/feeds install -p packages htop usbutils 2>&1 | tee -a "$output_dir/logs/feeds-install.log"
   cp -- "$project_dir/config/hc5962-spi-32m-$wifi_driver.config" .config
   make defconfig 2>&1 | tee "$output_dir/logs/defconfig.log"
@@ -67,8 +67,9 @@ if [[ $mode == all || $mode == prepare ]]; then
   required=(
     CONFIG_TARGET_ramips_mt7621_DEVICE_hiwifi_hc5962-spi
     CONFIG_PACKAGE_kmod-mtk-hnat
-    CONFIG_PACKAGE_kmod-ipt-nat
-    CONFIG_PACKAGE_luci CONFIG_PACKAGE_luci-ssl
+    CONFIG_PACKAGE_kmod-ipt-nat CONFIG_PACKAGE_firewall4 CONFIG_PACKAGE_kmod-nft-offload
+    CONFIG_PACKAGE_luci CONFIG_PACKAGE_luci-ssl-openssl CONFIG_PACKAGE_luci-compat
+    CONFIG_PACKAGE_libustream-openssl
     CONFIG_LUCI_LANG_zh_Hans CONFIG_PACKAGE_luci-i18n-base-zh-cn
     CONFIG_PACKAGE_dropbear CONFIG_PACKAGE_htop
   )
@@ -82,7 +83,9 @@ if [[ $mode == all || $mode == prepare ]]; then
   for selection in "${required[@]}"; do
     grep -qx "${selection}=y" .config || { echo "Required selection was not retained by make defconfig: $selection" >&2; exit 1; }
   done
-  forbidden+=(CONFIG_PACKAGE_kmod-ipt-offload CONFIG_PACKAGE_kmod-nft-offload CONFIG_PACKAGE_kmod-fast-classifier CONFIG_PACKAGE_kmod-shortcut-fe CONFIG_PACKAGE_kmod-shortcut-fe-cm)
+  # firewall4 requires kmod-nft-offload. Having the module installed does not
+  # enable a flowtable; the image's UCI defaults disable both flow-offload flags.
+  forbidden+=(CONFIG_PACKAGE_kmod-ipt-offload CONFIG_PACKAGE_kmod-fast-classifier CONFIG_PACKAGE_kmod-shortcut-fe CONFIG_PACKAGE_kmod-shortcut-fe-cm CONFIG_PACKAGE_libustream-mbedtls CONFIG_PACKAGE_libustream-wolfssl)
   for selection in "${forbidden[@]}"; do
     if grep -qx "${selection}=y" .config; then
       echo "Unexpected selection conflicts with this SDK HWNAT build: $selection" >&2

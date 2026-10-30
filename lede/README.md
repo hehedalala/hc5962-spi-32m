@@ -11,6 +11,8 @@
 - 认证组件：wpad-openssl，提供 SAE/PMF 所需功能。实际启用 WPA3 还须配置无线安全选项并使用兼容客户端。
 - 硬件加速：`kmod-mtk-hnat` 随固件安装，`mtkhnat.ko` 开机自动加载；不是只安装 LuCI 插件。
 - SDK HNAT 使用独立内核 hook；首次启动默认关闭软件/硬件 flow offload，避免争用 PPE。
+- firewall4 必须依赖的 nft-offload 模块仍会随镜像安装；模块存在不代表启用了 flow offload。
+- LuCI HTTPS 使用 luci-ssl-openssl，和系统默认的 OpenSSL 后端保持一致。
 - 保留 Dropbear SSH、htop、中文 LuCI、HTTPS 和 USB 存储支持。
 
 ## SPI 与网络适配
