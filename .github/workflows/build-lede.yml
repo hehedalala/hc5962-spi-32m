@@ -55,14 +55,52 @@ jobs:
         timeout-minutes: 30
         run: bash lede/scripts/build.sh prepare
 
+      - name: Restore reusable host tools and MIPS toolchain
+        id: toolchain-cache
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: lede-tools-v1-ubuntu24.04-${{ runner.os }}-${{ runner.arch }}-8867669e23613233dde23cad3efe9d1f5de2cec8-${{ env.WIFI_DRIVER }}-${{ hashFiles('lede/config/*.config', 'lede/config/feeds.conf') }}
+          path: |
+            work-lede/lede-${{ env.WIFI_DRIVER }}/dl
+            work-lede/lede-${{ env.WIFI_DRIVER }}/staging_dir/host
+            work-lede/lede-${{ env.WIFI_DRIVER }}/staging_dir/hostpkg
+            work-lede/lede-${{ env.WIFI_DRIVER }}/staging_dir/toolchain-*
+            work-lede/lede-${{ env.WIFI_DRIVER }}/build_dir/host
+            work-lede/lede-${{ env.WIFI_DRIVER }}/build_dir/hostpkg
+            work-lede/lede-${{ env.WIFI_DRIVER }}/build_dir/toolchain-*
+
       - name: Download source archives
         shell: bash
         timeout-minutes: 45
         run: bash lede/scripts/build.sh download
 
+      - name: Build or verify reusable host tools and MIPS toolchain
+        id: toolchain
+        shell: bash
+        timeout-minutes: 100
+        run: bash lede/scripts/prepare-toolchain.sh
+
+      # Save before kernel compilation so a later driver failure does not lose
+      # the completed toolchain. Kernel and target package builds are excluded.
+      - name: Save completed host tools and MIPS toolchain
+        if: steps.toolchain.outcome == 'success' && steps.toolchain-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: lede-tools-v1-ubuntu24.04-${{ runner.os }}-${{ runner.arch }}-8867669e23613233dde23cad3efe9d1f5de2cec8-${{ env.WIFI_DRIVER }}-${{ hashFiles('lede/config/*.config', 'lede/config/feeds.conf') }}
+          path: |
+            work-lede/lede-${{ env.WIFI_DRIVER }}/dl
+            work-lede/lede-${{ env.WIFI_DRIVER }}/staging_dir/host
+            work-lede/lede-${{ env.WIFI_DRIVER }}/staging_dir/hostpkg
+            work-lede/lede-${{ env.WIFI_DRIVER }}/staging_dir/toolchain-*
+            work-lede/lede-${{ env.WIFI_DRIVER }}/build_dir/host
+            work-lede/lede-${{ env.WIFI_DRIVER }}/build_dir/hostpkg
+            work-lede/lede-${{ env.WIFI_DRIVER }}/build_dir/toolchain-*
+
       - name: Compile LEDE firmware and verify included HWNAT
         shell: bash
-        timeout-minutes: 270
+        timeout-minutes: 180
         run: bash lede/scripts/build.sh compile
 
       - name: Upload LEDE firmware and checksums

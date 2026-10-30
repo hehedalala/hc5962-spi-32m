@@ -89,6 +89,11 @@ metadata = {
     "source_repository": "https://github.com/coolsnowwolf/lede",
     "source_commit_requested": args.source_commit,
     "source_commit_git": git_head(src),
+    "compatibility_patches": [
+        {"file": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        for path in sorted((Path(__file__).resolve().parents[1] / "patches/kernel-6.18").glob("*.patch"))
+        if args.wifi_driver == "mt76"
+    ],
     "kernel_series": kernel_series,
     "kernel_version": kernel_series + kernel_match[1] if kernel_match else None,
     "kernel_testing": kernel_testing,

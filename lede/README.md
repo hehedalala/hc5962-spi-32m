@@ -7,6 +7,7 @@
 - 源码：coolsnowwolf/lede，固定提交 `8867669e23613233dde23cad3efe9d1f5de2cec8`。
 - 无线方案：用户选择 mt76，保留 WPA3-Personal 支持。
 - 内核：LEDE 自带的 Linux 6.18.58 测试分支。
+- 附带 SDK HNAT socket bind 接口兼容补丁，同时修正 hnat.c 和 hnat_mcast.c 的 Linux 6.18 地址参数类型；补丁 SHA256 会写入构建记录。
 - mt76：LEDE 对 6.18 分支配套的 2026-09-01 / `be5ce7910521492d4a2e4ce7ee3843680a46c047`，不是宣称上游最新提交。
 - 认证组件：wpad-openssl，提供 SAE/PMF 所需功能。实际启用 WPA3 还须配置无线安全选项并使用兼容客户端。
 - 硬件加速：`kmod-mtk-hnat` 随固件安装，`mtkhnat.ko` 开机自动加载；不是只安装 LuCI 插件。

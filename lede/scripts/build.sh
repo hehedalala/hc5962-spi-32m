@@ -48,6 +48,18 @@ if [[ $mode == all || $mode == prepare ]]; then
   [[ $(git -C "$source_dir" rev-parse HEAD) == "$source_commit" ]] || { echo 'Existing checkout differs from the pinned source. Select a new WORK_DIR.' >&2; exit 2; }
   printf 'lede-%s\n' "${source_commit:0:12}" > "$source_dir/version"
   printf '%s\n' "$source_date_epoch" > "$source_dir/version.date"
+  if [[ $wifi_driver == mt76 ]]; then
+    for compatibility_patch in "$project_dir"/patches/kernel-6.18/*.patch; do
+      if git -C "$source_dir" apply --check -- "$compatibility_patch"; then
+        git -C "$source_dir" apply -- "$compatibility_patch"
+      elif git -C "$source_dir" apply --reverse --check -- "$compatibility_patch"; then
+        echo "Compatibility patch already applied: ${compatibility_patch##*/}"
+      else
+        echo "Compatibility patch does not match pinned sources: $compatibility_patch" >&2
+        exit 1
+      fi
+    done
+  fi
   python3 "$project_dir/scripts/apply-device.py" "$source_dir" --wifi-driver "$wifi_driver"
   mkdir -p -- "$source_dir/files"
   cp -a -- "$project_dir/files/rootfs/." "$source_dir/files/"

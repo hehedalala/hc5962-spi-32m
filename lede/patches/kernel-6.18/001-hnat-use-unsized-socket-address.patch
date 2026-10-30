@@ -1,0 +1,24 @@
+diff --git a/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c b/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
+--- a/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
++++ b/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
+@@ -369,7 +369,7 @@
+ 	addr.nl_pad = 0;
+ 	addr.nl_pid = 65534;
+ 	addr.nl_groups = 1 << (RTNLGRP_NEIGH - 1);
+-	ret = kernel_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
++	ret = kernel_bind(sock, (struct sockaddr_unsized *)&addr, sizeof(addr));
+ 	if (ret < 0)
+ 		goto out;
+ 
+diff --git a/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat_mcast.c b/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat_mcast.c
+--- a/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat_mcast.c
++++ b/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat_mcast.c
+@@ -244,7 +244,7 @@
+ 	addr.nl_family = PF_NETLINK;
+ 	addr.nl_pid = 65536; /*fix me:how to get an unique id?*/
+ 	addr.nl_groups = RTMGRP_MDB;
+-	ret = sock->ops->bind(sock, (struct sockaddr *)&addr, sizeof(addr));
++	ret = sock->ops->bind(sock, (struct sockaddr_unsized *)&addr, sizeof(addr));
+ 	if (ret < 0)
+ 		goto out;
+ 
