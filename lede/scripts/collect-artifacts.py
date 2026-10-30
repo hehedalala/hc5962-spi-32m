@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument("source", type=Path)
@@ -184,6 +185,21 @@ if rootfs_candidates and not module_files:
     raise SystemExit("The staged root filesystem is missing the mtkhnat kernel module.")
 metadata["hardware_acceleration"]["staged_module_files"] = [str(path.relative_to(src)) for path in module_files]
 metadata["hardware_acceleration"]["staged_module_checked"] = bool(rootfs_candidates)
+if args.wifi_driver == "mt76":
+    boot_report = logs / "boot-dtb-check.json"
+    completed = subprocess.run([
+        sys.executable, str(Path(__file__).resolve().parent / "check-boot-dtb.py"),
+        str(image), "--require-hnat", "--report", str(boot_report),
+    ], text=True)
+    if completed.returncode:
+        raise SystemExit("Boot-critical DTB compatibility check failed; see logs/boot-dtb-check.json")
+    boot_result = json.loads(boot_report.read_text(encoding="utf-8"))
+    metadata["boot_dtb_check"] = {
+        "result": boot_result["result"],
+        "report": "boot-dtb-check.json",
+        "checks_passed": sum(item["result"] == "PASS" for item in boot_result["checks"]),
+        "hardware_boot_verified": False,
+    }
 (logs / "build-info.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
 
 deliverables = images + sorted(target.glob("*hiwifi_hc5962-spi*initramfs*.bin")) + manifests
@@ -195,6 +211,8 @@ for source in deliverables:
     shutil.copy2(source, firmware / source.name)
 for name in ("build-info.json", "full-config.txt"):
     shutil.copy2(logs / name, firmware / name)
+if (logs / "boot-dtb-check.json").is_file():
+    shutil.copy2(logs / "boot-dtb-check.json", firmware / "boot-dtb-check.json")
 checksums = [
     f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}"
     for path in sorted(firmware.iterdir())

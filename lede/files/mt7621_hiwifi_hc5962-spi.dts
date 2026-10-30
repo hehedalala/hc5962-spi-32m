@@ -1,13 +1,15 @@
 /*
- * HC5962/B70 with a 32 MiB SPI-NOR flash and the Newifi-D1 Breed layout.
- * Linux 6.18 / Lean LEDE, mainline Ethernet + DSA with SDK HNAT.
- * Factory data is kept read-only. This port does not rewrite Breed or EEPROM.
+ * HC5962 SPI 32 MiB: modern Linux 6.18 hardware description.
+ * The common DTS and board wiring come from the previously boot-tested
+ * OpenWrt 5700101d7c85381889d890dc1d3d001d0b4b6446 SPI port.
+ * The SDK HNAT node is an added integration and still needs runtime testing.
  */
 
-#include "mt7621.dtsi"
+#include "mt7621-hc5962-6.18.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	compatible = "hiwifi,hc5962-spi", "mediatek,mt7621-soc";
@@ -15,10 +17,10 @@
 
 	aliases {
 		label-mac-device = &gmac0;
-		led-boot = &led_system;
-		led-failsafe = &led_system;
-		led-running = &led_status;
-		led-upgrade = &led_status;
+		led-boot = &led_status_red;
+		led-failsafe = &led_status_red;
+		led-running = &led_status_white;
+		led-upgrade = &led_status_white;
 	};
 
 	chosen {
@@ -28,13 +30,15 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led_status: status {
-			label = "white:status";
+		led_status_white: led-0 {
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_STATUS;
 			gpios = <&gpio 6 GPIO_ACTIVE_LOW>;
 		};
 
-		led_system: system {
-			label = "red:system";
+		led_status_red: led-1 {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_STATUS;
 			gpios = <&gpio 7 GPIO_ACTIVE_LOW>;
 			panic-indicator;
 		};
@@ -49,6 +53,18 @@
 			linux,code = <KEY_RESTART>;
 		};
 	};
+	/* LAN uses GMAC0 via DSA; PHY4 WAN is directly attached to GMAC1. */
+	hnat: hnat@1e100000 {
+		compatible = "mediatek,mtk-hnat_v1";
+		reg = <0x1e100000 0x3000>;
+		mtketh-wan = "wan";
+		mtketh-lan = "lan";
+		mtketh-ppd = "eth0";
+		mtketh-max-gmac = <2>;
+		ext-devices = "wlan0", "wlan1", "phy0-ap0", "phy1-ap0";
+		status = "okay";
+	};
+
 };
 
 &nand {
@@ -81,10 +97,32 @@
 				read-only;
 			};
 
-			factory: partition@40000 {
+			partition@40000 {
 				label = "factory";
 				reg = <0x40000 0x10000>;
 				read-only;
+
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					eeprom_factory_0: eeprom@0 {
+						reg = <0x0 0x400>;
+					};
+
+					eeprom_factory_8000: eeprom@8000 {
+						reg = <0x8000 0x200>;
+					};
+
+					macaddr_factory_e000: macaddr@e000 {
+						reg = <0xe000 0x6>;
+					};
+
+					macaddr_factory_e006: macaddr@e006 {
+						reg = <0xe006 0x6>;
+					};
+				};
 			};
 
 			partition@50000 {
@@ -101,23 +139,41 @@
 };
 
 &pcie0 {
-	mt76@0,0 {
+	wifi@0,0 {
+		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
-		mediatek,mtd-eeprom = <&factory 0x0000>;
+		nvmem-cells = <&eeprom_factory_0>;
+		nvmem-cell-names = "eeprom";
 		ieee80211-freq-limit = <2400000 2500000>;
 	};
 };
 
 &pcie1 {
-	mt76@0,0 {
+	wifi@0,0 {
+		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
-		mediatek,mtd-eeprom = <&factory 0x8000>;
+		nvmem-cells = <&eeprom_factory_8000>;
+		nvmem-cell-names = "eeprom";
 		ieee80211-freq-limit = <5000000 6000000>;
 	};
 };
 
 &gmac0 {
-	mtd-mac-address = <&factory 0xe000>;
+	nvmem-cells = <&macaddr_factory_e000>;
+	nvmem-cell-names = "mac-address";
+};
+
+&gmac1 {
+	status = "okay";
+	label = "wan";
+	phy-handle = <&ethphy4>;
+
+	nvmem-cells = <&macaddr_factory_e006>;
+	nvmem-cell-names = "mac-address";
+};
+
+&ethphy4 {
+	/delete-property/ interrupts;
 };
 
 &switch0 {
@@ -136,25 +192,7 @@
 			status = "okay";
 			label = "lan3";
 		};
-
-		port@4 {
-			status = "okay";
-			label = "wan";
-			mtd-mac-address = <&factory 0xe006>;
-		};
 	};
-};
-
-&hnat {
-	mtketh-wan = "wan";
-	mtketh-ppd = "lan";
-	mtketh-lan = "lan";
-	mtketh-max-gmac = <1>;
-	mtkdsa-wan-port = <4>;
-	ext-devices = "wlan0", "wlan1", "phy0-ap0", "phy1-ap0",
-		      "ra0", "rai0", "rax0",
-		      "apcli0", "apclii0", "apclix0";
-	status = "okay";
 };
 
 &state_default {

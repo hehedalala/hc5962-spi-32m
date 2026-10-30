@@ -2,6 +2,12 @@
 
 本目录是独立的 LEDE 编译方案，原有主线固件与构建文件保留在仓库根目录。
 
+## 启动故障与修复状态
+
+运行 41026505538 的旧 LEDE 镜像已被报告无法正常启动，禁止继续使用该产物。实际成品中的 MT7621 系统控制器、时钟、复位及 PCIe 设备树仍沿用旧绑定，与 Linux 6.18 不匹配。镜像 CRC/SHA256 正确并不能证明硬件能启动。
+
+本次修复完整采用之前已在本机正常启动的 OpenWrt 提交 5700101d7c85381889d890dc1d3d001d0b4b6446 的 common/板级硬件定义，并最小叠加 SDK HNAT 节点。新的 common 文件独立安装，不覆盖 LEDE 的 5.10 设备树。发布前必须从实际内核镜像提取 DTB，通过启动绑定门禁；新产物仍需硬件启动验证。
+
 ## 本次构建
 
 - 源码：coolsnowwolf/lede，固定提交 `8867669e23613233dde23cad3efe9d1f5de2cec8`。
@@ -27,7 +33,7 @@
 - firmware：0x50000–0x2000000，32448 KiB 上限。
 - 2.4GHz/5GHz EEPROM：factory 内偏移 0 / 0x8000。
 - LAN/WAN MAC：factory 内偏移 0xe000 / 0xe006。
-- mt76/6.18 方案使用 DSA：LAN 端口 1/2/3，WAN 端口 4。
+- mt76/6.18 方案沿用已工作的双 GMAC：GMAC0 接 DSA LAN1/2/3，GMAC1 直连 PHY4 并命名为 wan。
 - 灯和复位 GPIO 采用 HC5962，不能因为使用 Newifi D1 Breed 就套用 D1 硬件定义。
 
 新构建尚未在实机启动。6.18 是 LEDE 测试内核，编译通过不代表无线吞吐、SDK HNAT 命中或配置迁移已经通过实机验证。构建不会自动刷写路由器。
@@ -36,7 +42,7 @@
 
 工作流：仓库 `.github/workflows/build-lede.yml`。
 
-本次 `lede-sdk-hwnat` 分支的 push 自动使用 mt76 配置；手动运行也默认 mt76。固件与日志分开上传，构建失败只提供日志。产物同时包含 SHA256SUMS、软件清单和 build-info.json，核验实际包清单确实包含 kmod-mtk-hnat。
+本次 `lede-sdk-hwnat` 分支的 push 自动使用 mt76 配置；手动运行也默认 mt76。固件与日志分开上传，构建失败只提供日志。产物同时包含 SHA256SUMS、软件清单、build-info.json 和 boot-dtb-check.json，核验实际包清单确实包含 kmod-mtk-hnat，并检查实际成品的启动关键设备树与内核匹配。
 
 vendor 仅作为备用构建选项：Linux 5.10.272 + MT7603e 4.1.2.0 / MT7612e 3.0.5.0。这份 5GHz 厂商驱动不含 SAE，不能承诺 WPA3，因此不作为本次选择。
 
