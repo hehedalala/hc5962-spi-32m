@@ -1,0 +1,9 @@
+PASS: Official pinned OpenWrt source archive SHA256 verified.
+PASS: Python scripts parse; Bash scripts parse; Actions YAML parses.
+PASS: Device patch applies to the actual archived upstream files.
+PASS: Re-applying the device patch leaves identical files.
+PASS: Separate SPI profile, 32448KiB limit, metadata and LAN/WAN group verified.
+PASS: Diagnostics identify mt76 2026-10-28 / 0936617dc529ff9da0385221d3fa6de732231177.
+NOT RUN: Linux make defconfig, DTC, kernel/toolchain/image compilation.
+NOT RUN: Real-device flash layout/factory validation and hardware boot/network/WiFi tests.
+STATUS: Source/configuration only; no flashable firmware has been generated.
