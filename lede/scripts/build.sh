@@ -68,8 +68,11 @@ if [[ $mode == all || $mode == prepare ]]; then
   ./scripts/feeds uninstall -a
   cp -- "$project_dir/config/feeds.conf" feeds.conf.default
   ./scripts/feeds update packages luci 2>&1 | tee "$output_dir/logs/feeds-update.log"
-  ./scripts/feeds install -p luci luci luci-ssl-openssl luci-compat 2>&1 | tee "$output_dir/logs/feeds-install.log"
-  ./scripts/feeds install -p packages htop usbutils 2>&1 | tee -a "$output_dir/logs/feeds-install.log"
+  # Core source recipes can compile dependencies from unselected variants.
+  # Install feed definitions completely; .config still selects image contents.
+  ./scripts/feeds install -a -p packages 2>&1 | tee "$output_dir/logs/feeds-install.log"
+  ./scripts/feeds install -a -p luci 2>&1 | tee -a "$output_dir/logs/feeds-install.log"
+  [[ -f package/feeds/packages/pcre2/Makefile ]] || { echo 'Missing PCRE2 target/host recipe required by core source variants.' >&2; exit 1; }
   cp -- "$project_dir/config/hc5962-spi-32m-$wifi_driver.config" .config
   make defconfig 2>&1 | tee "$output_dir/logs/defconfig.log"
   if grep -q 'error: recursive dependency detected' "$output_dir/logs/defconfig.log"; then

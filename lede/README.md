@@ -15,6 +15,7 @@
 - firewall4 必须依赖的 nft-offload 模块仍会随镜像安装；模块存在不代表启用了 flow offload。
 - LuCI HTTPS 使用 luci-ssl-openssl，和系统默认的 OpenSSL 后端保持一致。
 - 保留 Dropbear SSH、htop、中文 LuCI、HTTPS 和 USB 存储支持。
+- 完整安装 packages/LuCI 的编译定义来解析源码包全部变体的依赖；实际写入镜像的软件仍由精简 .config 决定。
 
 ## SPI 与网络适配
 

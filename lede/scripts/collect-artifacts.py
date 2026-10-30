@@ -128,6 +128,8 @@ metadata = {
 for source, name in [
     (src / ".config", "full-config.txt"),
     (src / "feeds.conf.default", "feeds.conf"),
+    (src / "tmp/.packageinfo", "package-info.txt"),
+    (src / "tmp/.packagedeps", "package-dependencies.mk"),
     (kernel_recipe_path, "kernel-version.txt"),
     *[(src / path, f"{name}-Makefile.txt") for name, path in recipes.items()],
 ]:
