@@ -70,13 +70,22 @@ if [[ $mode == all || $mode == prepare ]]; then
   printf 'snapshot-%s\n' "${source_commit:0:12}" > "$source_dir/version"
   printf '%s\n' "$source_date_epoch" > "$source_dir/version.date"
   python3 "$project_dir/scripts/apply-device.py" "$source_dir"
-  cp -- "$project_dir/config/feeds.conf" "$source_dir/feeds.conf.default"
   cd -- "$source_dir"
-  ./scripts/feeds update -a 2>&1 | tee "$output_dir/logs/feeds-update.log"
-  ./scripts/feeds install -a 2>&1 | tee "$output_dir/logs/feeds-install.log"
+  # Clear generated feed links before replacing the feed list on a resumed build.
+  ./scripts/feeds uninstall -a
+  cp -- "$project_dir/config/feeds.conf" "$source_dir/feeds.conf.default"
+  ./scripts/feeds update packages luci 2>&1 | tee "$output_dir/logs/feeds-update.log"
+  # Installing only selected source packages still pulls in their dependencies.
+  # Avoid unrelated Kconfig entries from optional multimedia/server packages.
+  ./scripts/feeds install -p luci luci luci-ssl 2>&1 | tee "$output_dir/logs/feeds-install.log"
+  ./scripts/feeds install -p packages htop usbutils 2>&1 | tee -a "$output_dir/logs/feeds-install.log"
   cp -- "$project_dir/config/hc5962-spi-32m.config" .config
   make defconfig 2>&1 | tee "$output_dir/logs/defconfig.log"
-  for selection in CONFIG_TARGET_ramips_mt7621_DEVICE_hiwifi_hc5962-spi CONFIG_PACKAGE_kmod-mt7603 CONFIG_PACKAGE_kmod-mt76x2 CONFIG_PACKAGE_luci-ssl CONFIG_PACKAGE_luci-i18n-base-zh-cn; do
+  if grep -q 'error: recursive dependency detected' "$output_dir/logs/defconfig.log"; then
+    echo 'Kconfig contains a recursive dependency; see defconfig.log.' >&2
+    exit 1
+  fi
+  for selection in CONFIG_TARGET_ramips_mt7621_DEVICE_hiwifi_hc5962-spi CONFIG_PACKAGE_kmod-mt7603 CONFIG_PACKAGE_kmod-mt76x2 CONFIG_PACKAGE_luci-ssl CONFIG_LUCI_LANG_zh_Hans CONFIG_PACKAGE_luci-i18n-base-zh-cn; do
     grep -qx "${selection}=y" .config || { echo "Required selection was not retained by make defconfig: $selection" >&2; exit 1; }
   done
   python3 "$project_dir/scripts/collect-artifacts.py" "$source_dir" "$output_dir" "$source_commit" --diagnostics-only
