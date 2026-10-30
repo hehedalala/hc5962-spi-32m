@@ -1,0 +1,75 @@
+name: Build LEDE HC5962 SPI 32MB SDK HWNAT
+
+on:
+  workflow_dispatch:
+    inputs:
+      wifi_driver:
+        description: 'mt76: Linux 6.18 testing + WPA3; vendor: Linux 5.10 + WPA2-AES'
+        type: choice
+        required: true
+        default: mt76
+        options:
+          - mt76
+          - vendor
+  push:
+    branches: [lede-sdk-hwnat]
+    paths:
+      - '.github/workflows/build-lede.yml'
+      - 'lede/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lede-hc5962-spi-${{ github.ref }}-${{ github.event.inputs.wifi_driver || 'mt76' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      WORK_DIR: ${{ github.workspace }}/work-lede
+      OUTPUT_DIR: ${{ github.workspace }}/artifacts-lede
+      JOBS: '2'
+      WIFI_DRIVER: ${{ github.event.inputs.wifi_driver || 'mt76' }}
+    steps:
+      - name: Checkout build configuration
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare the disposable GitHub-hosted runner
+        shell: bash
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends autoconf automake binutils bzip2 build-essential clang cmake flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev libelf-dev libtool python3 python3-setuptools python3-pyelftools rsync swig unzip zlib1g-dev file wget curl zstd patch perl pkgconf
+          df -h .
+
+      - name: Build pinned LEDE, SPI device support and SDK HWNAT
+        shell: bash
+        timeout-minutes: 320
+        run: bash lede/scripts/build.sh
+
+      - name: Upload LEDE firmware and checksums
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lede-hc5962-spi-32m-${{ env.WIFI_DRIVER }}-${{ github.run_number }}
+          path: artifacts-lede/firmware/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Upload build logs and source provenance
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lede-hc5962-spi-32m-${{ env.WIFI_DRIVER }}-logs-${{ github.run_number }}
+          path: artifacts-lede/logs/
+          if-no-files-found: warn
+          retention-days: 14
