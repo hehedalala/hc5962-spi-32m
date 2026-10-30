@@ -1,0 +1,34 @@
+diff --git a/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c b/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
+--- a/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
++++ b/target/linux/ramips/files-6.18/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
+@@ -42,7 +42,7 @@
+ void (*ppe_dev_unregister_hook)(struct net_device *dev) = NULL;
+ EXPORT_SYMBOL(ppe_dev_unregister_hook);
+ 
+-static int ppe_cnt = 2;
++static int ppe_cnt = MAX_PPE_NUM;
+ module_param(ppe_cnt, int, 0);
+ 
+ static void hnat_sma_build_entry(struct timer_list *t)
+@@ -774,6 +774,12 @@
+ 	struct extdev_entry *ext_entry;
+ 	const struct of_device_id *match;
+ 
++	if (ppe_cnt < 1 || ppe_cnt > MAX_PPE_NUM) {
++		dev_err(&pdev->dev, "invalid PPE count %d (supported: 1..%d)\n",
++			ppe_cnt, MAX_PPE_NUM);
++		return -EINVAL;
++	}
++
+ 	hnat_priv = devm_kzalloc(&pdev->dev, sizeof(struct mtk_hnat), GFP_KERNEL);
+ 	if (!hnat_priv)
+ 		return -ENOMEM;
+@@ -793,7 +799,7 @@
+ 	if (err < 0)
+ 		return -EINVAL;
+ 
+-	strncpy(hnat_priv->wan, "eth0", IFNAMSIZ);
++	strscpy(hnat_priv->wan, name, sizeof(hnat_priv->wan));
+ 	dev_info(&pdev->dev, "wan = %s\n", hnat_priv->wan);
+ 
+ 	err = of_property_read_string(np, "mtketh-lan", &name);

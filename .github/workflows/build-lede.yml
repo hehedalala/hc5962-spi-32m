@@ -22,7 +22,7 @@ permissions:
 
 concurrency:
   group: lede-hc5962-spi-${{ github.ref }}-${{ github.event.inputs.wifi_driver || 'mt76' }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
